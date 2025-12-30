@@ -1,0 +1,24 @@
+{
+  "pair": "EURUSD",
+  "timeframe": "M5",
+  "strategy_id": 20,
+  "config": {
+    "symbol": "EURUSD",
+    "rsi_timeframe": "M5",
+    "higher_timeframe": "M5",
+    "rsi_period": 14,
+    "rsi_overbought": 70.0,
+    "rsi_oversold": 30.0,
+    "wait_for_candle_close": true,
+    "initial_lot": 0.1,
+    "martingale_multiplier": 2.0,
+    "order_comment": "RSI6_Aggressive",
+    "max_trades": 10,
+    "allow_both_directions": true,
+    "atr_grid_timeframe": "M5",
+    "atr_grid_period": 10,
+    "atr_tp_timeframe": "M5",
+    "atr_tp_period": 10,
+    "slippage_points": 3
+  }
+}
