@@ -84,6 +84,43 @@ def load_excel_equity_curve(file_path, pair_name):
         print(f"Error loading {file_path}: {e}")
         return None
 
+def load_pairtrading_equity_curve(file_path, pair_name):
+    """Load equity curve from Pair Trading EA Excel file (different format)"""
+    try:
+        df = pd.read_excel(file_path, skiprows=2)
+        # Clean column names
+        df.columns = df.columns.str.strip()
+        
+        # Filter rows with Balance data
+        df = df[df['Balance'].notna()]
+        df = df[['Time', 'Balance']].copy()
+        
+        # Clean balance column - remove spaces and convert to numeric
+        df['Balance'] = df['Balance'].astype(str).str.replace(' ', '').str.replace(',', '')
+        df['Balance'] = pd.to_numeric(df['Balance'], errors='coerce')
+        
+        # Parse time - handle different formats
+        df['Time'] = df['Time'].astype(str).str.strip()
+        df['Time'] = pd.to_datetime(df['Time'], format='%Y.%m.%d %H:%M:%S', errors='coerce')
+        
+        # Drop rows with NaN
+        df = df.dropna()
+        
+        # Remove duplicate timestamps (keep last)
+        df = df[~df.duplicated(subset=['Time'], keep='last')]
+        
+        # Set time as index
+        df = df.set_index('Time')
+        df = df.sort_index()
+        
+        # Rename column
+        df.columns = [pair_name]
+        
+        return df
+    except Exception as e:
+        print(f"Error loading {file_path}: {e}")
+        return None
+
 # ============================================================================
 # STRATEGY DATA PATHS
 # ============================================================================
@@ -125,6 +162,17 @@ STRATEGY_PATHS = {
         ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI 6 trades/NZDCHF/NZDCHF.xlsx', 'NZDCHF'),
         ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI 6 trades/CADCHF/CADCHF.xlsx', 'CADCHF'),
     ],
+    'AURUM': [
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/AURUM/Gold /Gold - Indivisual TP.xlsx', 'XAUUSD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/AURUM/USDJPY/USDJPY - AVG TP.xlsx', 'USDJPY'),
+    ],
+    'PairTradingEA': [
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Pair Trading EA/EURUSD-GBPUSD/EURUSD-GBPUSD.xlsx', 'EURUSD_GBPUSD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Pair Trading EA/EURUSD_AUDUSD/EURUSD-AUDUSD.xlsx', 'EURUSD_AUDUSD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Pair Trading EA/EURGBP-GBPCHF/EURGBP-GBPCHF.xlsx', 'EURGBP_GBPCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Pair Trading EA/AUDUSD-AUDCAD/AUDUSD-AUDCAD.xlsx', 'AUDUSD_AUDCAD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Pair Trading EA/USDCAD_AUDCHF/USDCAD-AUDCHF.xlsx', 'USDCAD_AUDCHF'),
+    ],
 }
 
 # ============================================================================
@@ -156,8 +204,11 @@ def load_strategy_data(strategy_name, paths):
             print(f"  Warning: File not found: {file_path}")
             continue
             
-        # Load based on file extension
-        if file_path.endswith('.xlsx'):
+        # Load based on strategy and file extension
+        if strategy_name == 'PairTradingEA':
+            # Use special loader for Pair Trading EA
+            equity_df = load_pairtrading_equity_curve(file_path, pair_name)
+        elif file_path.endswith('.xlsx'):
             equity_df = load_excel_equity_curve(file_path, pair_name)
         else:
             equity_df = load_csv_equity_curve(file_path, pair_name)
@@ -267,7 +318,7 @@ def create_within_strategy_correlation_sheet(wb):
     ws.cell(row=row, column=1).font = Font(italic=True, size=10, color="666666")
     row += 2
     
-    strategy_colors = ["4472C4", "ED7D31", "70AD47", "5B9BD5"]
+    strategy_colors = ["4472C4", "ED7D31", "70AD47", "5B9BD5", "7030A0", "C00000"]
     
     for idx, (strategy_name, paths) in enumerate(STRATEGY_PATHS.items()):
         # Load strategy data
@@ -325,53 +376,59 @@ def create_within_strategy_correlation_sheet(wb):
         mask = np.triu(np.ones_like(corr_matrix, dtype=bool), k=1)
         correlations = corr_matrix.where(mask).stack().values
         
-        ws.cell(row=row, column=1, value="Average Correlation:")
-        ws.cell(row=row, column=2, value=round(np.mean(correlations), 4))
-        row += 1
-        
-        ws.cell(row=row, column=1, value="Min Correlation:")
-        ws.cell(row=row, column=2, value=round(np.min(correlations), 4))
-        row += 1
-        
-        ws.cell(row=row, column=1, value="Max Correlation:")
-        ws.cell(row=row, column=2, value=round(np.max(correlations), 4))
-        row += 1
-        
-        ws.cell(row=row, column=1, value="Std Dev:")
-        ws.cell(row=row, column=2, value=round(np.std(correlations), 4))
-        row += 1
-        
-        # Diversification benefit
-        avg_corr = np.mean(correlations)
-        n_pairs = len(pair_names)
-        diversification_benefit = 1 - avg_corr
-        
-        ws.cell(row=row, column=1, value="Diversification Benefit:")
-        ws.cell(row=row, column=2, value=round(diversification_benefit * 100, 2))
-        ws.cell(row=row, column=3, value="%")
-        ws.cell(row=row, column=1).font = Font(bold=True, color="006600")
-        ws.cell(row=row, column=2).font = Font(bold=True, color="006600")
-        row += 1
-        
-        ws.cell(row=row, column=1, value="Interpretation:")
-        ws.cell(row=row, column=1).font = Font(italic=True)
-        
-        if avg_corr < 0.3:
-            interpretation = "Excellent diversification - pairs are weakly correlated"
-            color = "006600"
-        elif avg_corr < 0.5:
-            interpretation = "Good diversification - moderate correlation"
-            color = "0066CC"
-        elif avg_corr < 0.7:
-            interpretation = "Moderate diversification - pairs are correlated"
-            color = "FF8800"
+        # Handle edge case where there might be no correlations
+        if len(correlations) > 0:
+            ws.cell(row=row, column=1, value="Average Correlation:")
+            ws.cell(row=row, column=2, value=round(np.mean(correlations), 4))
+            row += 1
+            
+            ws.cell(row=row, column=1, value="Min Correlation:")
+            ws.cell(row=row, column=2, value=round(np.min(correlations), 4))
+            row += 1
+            
+            ws.cell(row=row, column=1, value="Max Correlation:")
+            ws.cell(row=row, column=2, value=round(np.max(correlations), 4))
+            row += 1
+            
+            ws.cell(row=row, column=1, value="Std Dev:")
+            ws.cell(row=row, column=2, value=round(np.std(correlations), 4) if len(correlations) > 1 else 0.0)
+            row += 1
+            
+            # Diversification benefit
+            avg_corr = np.mean(correlations)
+            n_pairs = len(pair_names)
+            diversification_benefit = 1 - avg_corr
+            
+            ws.cell(row=row, column=1, value="Diversification Benefit:")
+            ws.cell(row=row, column=2, value=round(diversification_benefit * 100, 2))
+            ws.cell(row=row, column=3, value="%")
+            ws.cell(row=row, column=1).font = Font(bold=True, color="006600")
+            ws.cell(row=row, column=2).font = Font(bold=True, color="006600")
+            row += 1
+            
+            ws.cell(row=row, column=1, value="Interpretation:")
+            ws.cell(row=row, column=1).font = Font(italic=True)
+            
+            if avg_corr < 0.3:
+                interpretation = "Excellent diversification - pairs are weakly correlated"
+                color = "006600"
+            elif avg_corr < 0.5:
+                interpretation = "Good diversification - moderate correlation"
+                color = "0066CC"
+            elif avg_corr < 0.7:
+                interpretation = "Moderate diversification - pairs are correlated"
+                color = "FF8800"
+            else:
+                interpretation = "Low diversification - pairs are highly correlated"
+                color = "CC0000"
+            
+            ws.cell(row=row, column=2, value=interpretation)
+            ws.cell(row=row, column=2).font = Font(color=color)
+            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=5)
         else:
-            interpretation = "Low diversification - pairs are highly correlated"
-            color = "CC0000"
+            ws.cell(row=row, column=1, value="Only one pair - no correlation to calculate")
+            ws.cell(row=row, column=1).font = Font(italic=True, color="666666")
         
-        ws.cell(row=row, column=2, value=interpretation)
-        ws.cell(row=row, column=2).font = Font(color=color)
-        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=5)
         row += 3
     
     # Adjust column widths
