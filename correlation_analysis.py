@@ -173,6 +173,14 @@ STRATEGY_PATHS = {
         ('/Users/sureshpatil/Desktop/Portfolio Creation/Pair Trading EA/AUDUSD-AUDCAD/AUDUSD-AUDCAD.xlsx', 'AUDUSD_AUDCAD'),
         ('/Users/sureshpatil/Desktop/Portfolio Creation/Pair Trading EA/USDCAD_AUDCHF/USDCAD-AUDCHF.xlsx', 'USDCAD_AUDCHF'),
     ],
+    'RSI_Correlation': [
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI corelation/AUDUSD_GBPNZD/AUDUSD_GBPNZD.xlsx', 'AUDUSD_GBPNZD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI corelation/EURAUD_CADCHF/EURAUD-CADCHF.xlsx', 'EURAUD_CADCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI corelation/EURGBP_GBPCHF/EURGBP_GBPCHF.xlsx', 'EURGBP_GBPCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI corelation/GBPUSD_USDCAD/GBPUSD-USDCAD.xlsx', 'GBPUSD_USDCAD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI corelation/GBPUSD_USDCHF/GBPUSD-USDCHF.xlsx', 'GBPUSD_USDCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI corelation/USDCAD_AUDCHF/USDCAD-AUDCHF.xlsx', 'USDCAD_AUDCHF'),
+    ],
 }
 
 # ============================================================================
@@ -205,8 +213,8 @@ def load_strategy_data(strategy_name, paths):
             continue
             
         # Load based on strategy and file extension
-        if strategy_name == 'PairTradingEA':
-            # Use special loader for Pair Trading EA
+        if strategy_name in ['PairTradingEA', 'RSI_Correlation']:
+            # Use special loader for Pair Trading EA and RSI Correlation (same format)
             equity_df = load_pairtrading_equity_curve(file_path, pair_name)
         elif file_path.endswith('.xlsx'):
             equity_df = load_excel_equity_curve(file_path, pair_name)
@@ -318,7 +326,7 @@ def create_within_strategy_correlation_sheet(wb):
     ws.cell(row=row, column=1).font = Font(italic=True, size=10, color="666666")
     row += 2
     
-    strategy_colors = ["4472C4", "ED7D31", "70AD47", "5B9BD5", "7030A0", "C00000"]
+    strategy_colors = ["4472C4", "ED7D31", "70AD47", "5B9BD5", "7030A0", "C00000", "9E480E"]
     
     for idx, (strategy_name, paths) in enumerate(STRATEGY_PATHS.items()):
         # Load strategy data
