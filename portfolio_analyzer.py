@@ -1149,11 +1149,11 @@ def create_sheet4_final_portfolio(wb, strategies_data):
     
     # SECTION 1: Strategy-Level Performance
     ws.cell(row=row, column=1, value="SECTION 1: STRATEGY-LEVEL PERFORMANCE")
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=10)
-    style_strategy_header(ws, row, 1, 10, "4472C4")
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=11)
+    style_strategy_header(ws, row, 1, 11, "4472C4")
     row += 1
     
-    headers = ['Strategy', 'Pair_Method', 'Pairs', 'Sharpe', 'XIRR_%', 'Return_%', 
+    headers = ['Strategy', 'Pair_Method', 'Pairs', 'Sharpe', 'XIRR_%', 'Simple_Return_%', 'Return_%', 
                'Capital', 'Profit', 'Max_DD', 'Years']
     for col_idx, header in enumerate(headers, 1):
         ws.cell(row=row, column=col_idx, value=header)
@@ -1168,11 +1168,14 @@ def create_sheet4_final_portfolio(wb, strategies_data):
         ws.cell(row=row, column=3, value=int(strat['Num_Pairs']))
         ws.cell(row=row, column=4, value=round(strat['Strategy_Sharpe'], 2))
         ws.cell(row=row, column=5, value=round(strat['Strategy_XIRR'], 2))
-        ws.cell(row=row, column=6, value=f"=ROUND(IF(G{row}>0, (H{row}/G{row})*100, 0), 2)")
-        ws.cell(row=row, column=7, value=round(strat['Total_Capital'], 2))
-        ws.cell(row=row, column=8, value=round(strat['Total_Profit'], 2))
-        ws.cell(row=row, column=9, value=round(strat['Max_Drawdown'], 2))
-        ws.cell(row=row, column=10, value=round(strat['Avg_Trading_Years'], 2))
+        # Simple Return % = (Profit / Capital / Years) * 100
+        ws.cell(row=row, column=6, value=f"=ROUND(IF(H{row}>0, (I{row}/H{row}/K{row})*100, 0), 2)")
+        # Return % = (Profit / Capital) * 100 (total return, not annualized)
+        ws.cell(row=row, column=7, value=f"=ROUND(IF(H{row}>0, (I{row}/H{row})*100, 0), 2)")
+        ws.cell(row=row, column=8, value=round(strat['Total_Capital'], 2))
+        ws.cell(row=row, column=9, value=round(strat['Total_Profit'], 2))
+        ws.cell(row=row, column=10, value=round(strat['Max_Drawdown'], 2))
+        ws.cell(row=row, column=11, value=round(strat['Avg_Trading_Years'], 2))
         row += 1
     
     end_data_row = row - 1
@@ -1180,13 +1183,13 @@ def create_sheet4_final_portfolio(wb, strategies_data):
     # TOTAL row
     ws.cell(row=row, column=1, value="TOTAL")
     ws.cell(row=row, column=3, value=f"=SUM(C{start_data_row}:C{end_data_row})")
-    ws.cell(row=row, column=7, value=f"=ROUND(SUM(G{start_data_row}:G{end_data_row}), 2)")
     ws.cell(row=row, column=8, value=f"=ROUND(SUM(H{start_data_row}:H{end_data_row}), 2)")
     ws.cell(row=row, column=9, value=f"=ROUND(SUM(I{start_data_row}:I{end_data_row}), 2)")
-    style_result_row(ws, row, 1, 10, "FFF2CC")
+    ws.cell(row=row, column=10, value=f"=ROUND(SUM(J{start_data_row}:J{end_data_row}), 2)")
+    style_result_row(ws, row, 1, 11, "FFF2CC")
     total_row_section1 = row
     
-    add_border(ws, start_data_row - 1, row, 1, 10)
+    add_border(ws, start_data_row - 1, row, 1, 11)
     row += 3
     
     # SECTION 2: Final Portfolio Allocation
@@ -1208,8 +1211,9 @@ def create_sheet4_final_portfolio(wb, strategies_data):
         data_row_ref = start_data_row + idx
         ws.cell(row=row, column=1, value=strat['Strategy'])
         ws.cell(row=row, column=2, value=f"=ROUND(100/{n_strategies}, 2)")
-        ws.cell(row=row, column=3, value=f"=ROUND((B{row}/100)*$G${total_row_section1}, 2)")
-        ws.cell(row=row, column=4, value=f"=ROUND(G{data_row_ref}, 2)")
+        ws.cell(row=row, column=3, value=f"=ROUND((B{row}/100)*$H${total_row_section1}, 2)")
+        ws.cell(row=row, column=4, value=f"=ROUND(H{data_row_ref}, 2)")
+        # Expected_Return_% uses Simple Return % (annualized) from Section 1, column 6
         ws.cell(row=row, column=5, value=f"=ROUND(F{data_row_ref}, 2)")
         ws.cell(row=row, column=6, value=f"=ROUND(C{row}*(E{row}/100), 2)")
         ws.cell(row=row, column=7, value=f"=ROUND(D{data_row_ref}, 2)")
@@ -1247,14 +1251,14 @@ def create_sheet4_final_portfolio(wb, strategies_data):
     # Total Capital Required
     ws.cell(row=row, column=1, value="Total Capital Required (MDD×2)")
     ws.cell(row=row, column=1).font = Font(bold=True, size=11)
-    ws.cell(row=row, column=2, value=f"=ROUND(G{total_row_section1}, 2)")
+    ws.cell(row=row, column=2, value=f"=ROUND(H{total_row_section1}, 2)")
     ws.cell(row=row, column=3, value="$")
     row += 1
     
     # Total Maximum Drawdown
     ws.cell(row=row, column=1, value="Total Maximum Drawdown")
     ws.cell(row=row, column=1).font = Font(bold=True, size=11)
-    ws.cell(row=row, column=2, value=f"=ROUND(I{total_row_section1}, 2)")
+    ws.cell(row=row, column=2, value=f"=ROUND(J{total_row_section1}, 2)")
     ws.cell(row=row, column=3, value="$")
     row += 1
     
@@ -1276,17 +1280,25 @@ def create_sheet4_final_portfolio(wb, strategies_data):
     ws.cell(row=row, column=3, value="%")
     row += 1
     
+    # Portfolio Simple Return %
+    ws.cell(row=row, column=1, value="Portfolio Simple Return %")
+    ws.cell(row=row, column=1).font = Font(bold=True, size=11)
+    # Weighted average of Simple Return % from Section 1
+    ws.cell(row=row, column=2, value=f"=ROUND(SUMPRODUCT(B{start_alloc_row}:B{end_alloc_row}/100, F{start_data_row}:F{end_data_row}), 2)")
+    ws.cell(row=row, column=3, value="%")
+    row += 1
+    
     # Expected Total Profit
     ws.cell(row=row, column=1, value="Expected Total Profit")
     ws.cell(row=row, column=1).font = Font(bold=True, size=11)
-    ws.cell(row=row, column=2, value=f"=ROUND(H{total_row_section1}, 2)")
+    ws.cell(row=row, column=2, value=f"=ROUND(I{total_row_section1}, 2)")
     ws.cell(row=row, column=3, value="$")
     row += 1
     
     # Overall Return on Capital
     ws.cell(row=row, column=1, value="Overall Return on Capital")
     ws.cell(row=row, column=1).font = Font(bold=True, size=11)
-    ws.cell(row=row, column=2, value=f"=ROUND(IF(G{total_row_section1}>0, (H{total_row_section1}/G{total_row_section1})*100, 0), 2)")
+    ws.cell(row=row, column=2, value=f"=ROUND(IF(H{total_row_section1}>0, (I{total_row_section1}/H{total_row_section1})*100, 0), 2)")
     ws.cell(row=row, column=3, value="%")
     
     add_border(ws, perf_start_row, row, 1, 3)
@@ -1306,7 +1318,7 @@ def create_sheet4_final_portfolio(wb, strategies_data):
     ws.column_dimensions['A'].width = 30
     ws.column_dimensions['B'].width = 18
     ws.column_dimensions['C'].width = 18
-    for col in range(4, 11):
+    for col in range(4, 12):
         ws.column_dimensions[get_column_letter(col)].width = 16
     
     return ws
