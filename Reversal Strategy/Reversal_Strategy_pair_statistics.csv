@@ -1,0 +1,2 @@
+Currency_Pair,Sharpe_Ratio,Total_Trades,Winning_Trades,Losing_Trades,Win_Rate_Percent,Total_Profit,Avg_Profit_Per_Trade,Avg_Winning_Trade,Avg_Losing_Trade,Max_Profit,Max_Loss,Profit_Std,Profit_Factor,Initial_Balance,Final_Balance,Total_Return_Percent,Trading_Period_Days,Start_Date,End_Date,XIRR,Max_Drawdown
+ALL_PAIRS,2.71,275,101,38,36.73,1200.979999999996,4.37,0,0,0,0,0,1.5,100000.0,101200.98,1.2,2186,2020-01-01,2025-12-26,0.2,410.0

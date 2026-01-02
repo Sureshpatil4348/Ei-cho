@@ -505,7 +505,7 @@ This portfolio represents a well-diversified, professionally backtested trading 
 
 **Document Version:** 1.0  
 **Last Updated:** December 30, 2025  
-**Data Sources:** Portfolio_Analysis_3Sheets.xlsx, Portfolio_Correlation_Analysis.xlsx
+**Data Sources:** Portfolio_Analysis_Sheets.xlsx, Portfolio_Correlation_Analysis.xlsx
 
 ---
 

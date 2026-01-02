@@ -300,7 +300,7 @@ Time: ~15 minutes for complete review
 9. ✅ Determine if RSI_Correlation OR PairTradingEA (or both reduced)
 10. ✅ Determine if AURUM OR 7th_Strategy (or both reduced)
 11. ✅ Select final strategy mix
-12. ✅ Update allocation in `Portfolio_Analysis_3Sheets.xlsx`
+12. ✅ Update allocation in `Portfolio_Analysis_Sheets.xlsx`
 
 ---
 
@@ -308,7 +308,7 @@ Time: ~15 minutes for complete review
 
 ```
 Step 1: Performance Analysis
-└─ Use Portfolio_Analysis_3Sheets.xlsx
+└─ Use Portfolio_Analysis_Sheets.xlsx
    └─ Rank strategies by Sharpe Ratio
    └─ Note capital requirements
 
@@ -377,7 +377,7 @@ In all correlation matrices:
 | File | Purpose | Status | Size |
 |------|---------|--------|------|
 | `Portfolio_Correlation_Analysis.xlsx` | Correlations | ✅ Updated | 13 KB |
-| `Portfolio_Analysis_3Sheets.xlsx` | Performance | ✅ Current | 22 KB |
+| `Portfolio_Analysis_Sheets.xlsx` | Performance | ✅ Current | 22 KB |
 | `correlation_analysis.py` | Source code | ✅ Updated | 33 KB |
 | `CORRELATION_FINAL_UPDATE.md` | This guide | ✅ New | - |
 

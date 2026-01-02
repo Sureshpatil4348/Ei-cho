@@ -121,6 +121,46 @@ def load_pairtrading_equity_curve(file_path, pair_name):
         print(f"Error loading {file_path}: {e}")
         return None
 
+def load_reversal_strategy_equity_curve(file_path, pair_name):
+    """Load equity curve from Reversal Strategy Excel file (combined pairs format)"""
+    try:
+        df = pd.read_excel(file_path, sheet_name='1day time frame 2020-25', skiprows=2)
+        # Clean column names
+        df.columns = df.columns.str.strip()
+        
+        # Filter for specific pair
+        if 'Symbol' in df.columns:
+            df = df[df['Symbol'] == pair_name].copy()
+        
+        # Filter rows with Balance and Time data
+        df = df[df['Balance'].notna() & df['Time'].notna()]
+        df = df[['Time', 'Balance']].copy()
+        
+        # Clean balance column - remove spaces and convert to numeric
+        df['Balance'] = df['Balance'].astype(str).str.replace(' ', '').str.replace(',', '')
+        df['Balance'] = pd.to_numeric(df['Balance'], errors='coerce')
+        
+        # Parse time
+        df['Time'] = pd.to_datetime(df['Time'], errors='coerce')
+        
+        # Drop rows with NaN
+        df = df.dropna()
+        
+        # Remove duplicate timestamps (keep last)
+        df = df[~df.duplicated(subset=['Time'], keep='last')]
+        
+        # Set time as index
+        df = df.set_index('Time')
+        df = df.sort_index()
+        
+        # Rename column
+        df.columns = [pair_name]
+        
+        return df
+    except Exception as e:
+        print(f"Error loading {file_path} for {pair_name}: {e}")
+        return None
+
 # ============================================================================
 # STRATEGY DATA PATHS
 # ============================================================================
@@ -181,6 +221,35 @@ STRATEGY_PATHS = {
         ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI corelation/GBPUSD_USDCHF/GBPUSD-USDCHF.xlsx', 'GBPUSD_USDCHF'),
         ('/Users/sureshpatil/Desktop/Portfolio Creation/RSI corelation/USDCAD_AUDCHF/USDCAD-AUDCHF.xlsx', 'USDCAD_AUDCHF'),
     ],
+    'Reversal_Strategy': [
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'USDCAD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'AUDNZD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'NZDUSD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'AUDJPY'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'GBPNZD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'USDCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'GBPAUD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'AUDCAD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'GBPJPY'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'EURCAD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'EURAUD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'EURNZD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'EURCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'CADCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'AUDUSD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'GBPUSD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'GBPCAD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'CHFJPY'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'NZDCAD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'EURUSD'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'AUDCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'NZDCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'GBPCHF'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'NZDJPY'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'EURGBP'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'USDJPY'),
+        ('/Users/sureshpatil/Desktop/Portfolio Creation/Reversal Strategy/All Pairs - 1 Day.xlsx', 'CADJPY'),
+    ],
 }
 
 # ============================================================================
@@ -213,7 +282,10 @@ def load_strategy_data(strategy_name, paths):
             continue
             
         # Load based on strategy and file extension
-        if strategy_name in ['PairTradingEA', 'RSI_Correlation']:
+        if strategy_name == 'Reversal_Strategy':
+            # Use special loader for Reversal Strategy (combined pairs in one file)
+            equity_df = load_reversal_strategy_equity_curve(file_path, pair_name)
+        elif strategy_name in ['PairTradingEA', 'RSI_Correlation']:
             # Use special loader for Pair Trading EA and RSI Correlation (same format)
             equity_df = load_pairtrading_equity_curve(file_path, pair_name)
         elif file_path.endswith('.xlsx'):

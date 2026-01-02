@@ -135,6 +135,44 @@ def extract_trades_from_csv(filepath):
         pass
     return []
 
+def extract_trades_from_reversal_excel(filepath):
+    """Extract individual trade profits from Reversal Strategy Excel file"""
+    try:
+        # Read Excel file starting from row 2 to skip headers
+        df = pd.read_excel(filepath, skiprows=2)
+        
+        # The Profit column should be explicitly named 'Profit'
+        if 'Profit' in df.columns and 'Symbol' in df.columns:
+            profits = []
+            for idx, row in df.iterrows():
+                # Skip rows with NaN Symbol (summary rows)
+                if pd.isna(row['Symbol']):
+                    continue
+                
+                val = row['Profit']
+                if pd.isna(val):
+                    continue
+                    
+                try:
+                    # Convert string format to float if needed
+                    if isinstance(val, str):
+                        val = float(val.replace(' ', '').replace(',', ''))
+                    
+                    # Only include actual closed trade profits:
+                    # - Not 0 (entry orders)
+                    # - Not > 10000 (initial balance entries)
+                    # - Actual profit/loss values
+                    if val != 0 and abs(val) < 10000:
+                        profits.append(val)
+                except:
+                    pass
+            
+            if profits:
+                return profits
+    except Exception as e:
+        print(f"Error extracting Reversal Strategy trades: {e}")
+    return []
+
 def get_mt5_sharpe_for_strategy(strategy_name, pair_name):
     """Get MT5 Sharpe Ratio for a specific strategy and pair"""
     
@@ -204,6 +242,14 @@ def get_mt5_sharpe_for_strategy(strategy_name, pair_name):
                 profits = extract_trades_from_csv(csv_path)
                 if profits:
                     return calculate_sharpe_from_trades(profits)
+    
+    elif strategy_name == 'Reversal_Strategy':
+        # Extract trades from the All Pairs Excel file
+        xlsx_path = os.path.join(BASE_PATH, 'Reversal Strategy', 'All Pairs - 1 Day.xlsx')
+        if os.path.exists(xlsx_path):
+            profits = extract_trades_from_reversal_excel(xlsx_path)
+            if profits:
+                return calculate_sharpe_from_trades(profits)
     
     return None
 
@@ -277,6 +323,7 @@ strategy_files = {
     'RSI_6_Trades': 'RSI 6 trades/RSI_6_Trades_pair_statistics.csv',
     'AURUM': 'AURUM/AURUM_pair_statistics.csv',
     'PairTradingEA': 'Pair Trading EA/PairTradingEA_pair_statistics.csv',
+    'Reversal_Strategy': 'Reversal Strategy/Reversal_Strategy_pair_statistics.csv',
 }
 
 print("=" * 80)
@@ -971,7 +1018,7 @@ def main():
     print("Creating Sheet 3: Strategy Capital Distribution...")
     create_sheet3_strategy_allocation(wb)
     
-    output_path = os.path.join(BASE_PATH, 'Portfolio_Analysis_3Sheets.xlsx')
+    output_path = os.path.join(BASE_PATH, 'Portfolio_Analysis_Sheets.xlsx')
     wb.save(output_path)
     print(f"\n✓ Workbook saved to: {output_path}")
 

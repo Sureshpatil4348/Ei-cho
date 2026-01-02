@@ -1,0 +1,2 @@
+Pair,Total_Trades,Winning_Trades,Losing_Trades,Total_Profit,Max_Drawdown,Initial_Balance,Final_Balance,Sharpe_Ratio,Win_Rate,Trading_Period_Days,Start_Date,End_Date
+ALL_PAIRS,275,101,38,1200.979999999996,410.0,100000.0,101200.98,0.0,36.594202898550726,2186,2020-01-01,2025-12-26
