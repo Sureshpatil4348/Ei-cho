@@ -177,7 +177,339 @@ def prepare_data(strategy_stats, pair_alloc, strategy_alloc):
     return results, num_strategies
 
 
-def create_dynamic_excel(data, num_strategies, starting_balance, output_file):
+def create_allocation_method_sheet(wb, sheet_name, data, strategy_stats, pair_alloc, 
+                                    allocation_method, balance_cell_ref):
+    """Create a sheet for a specific allocation method showing profit simulation."""
+    ws = wb.create_sheet(title=sheet_name)
+    
+    # Styles
+    title_font = Font(bold=True, size=16, color="2F5496")
+    header_font = Font(bold=True, size=12, color="FFFFFF")
+    header_fill = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
+    subheader_font = Font(bold=True, size=10)
+    subheader_fill = PatternFill(start_color="BDD7EE", end_color="BDD7EE", fill_type="solid")
+    money_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+    formula_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    method_display_names = {
+        'equal': 'Equal Weight',
+        'inv_vol': 'Inverse Volatility',
+        'sharpe': 'Sharpe Weighted',
+        'risk_parity': 'Risk Parity',
+        'max_sharpe': 'Max Sharpe Optimization'
+    }
+    
+    # ========== ROW 1: Title ==========
+    row = 1
+    ws.cell(row=row, column=1, value=f"PROFIT SIMULATION - {method_display_names.get(allocation_method, allocation_method).upper()}")
+    ws.cell(row=row, column=1).font = title_font
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=10)
+    
+    # ========== ROW 3: Reference to Starting Balance ==========
+    row = 3
+    ws.cell(row=row, column=1, value="Starting Balance (from main sheet):")
+    ws.cell(row=row, column=1).font = Font(bold=True, size=12)
+    ws.cell(row=row, column=2, value=f"='Portfolio Allocation'!{balance_cell_ref}")
+    ws.cell(row=row, column=2).font = Font(bold=True, size=12, color="008000")
+    ws.cell(row=row, column=2).number_format = '$#,##0.00'
+    ws.cell(row=row, column=2).fill = formula_fill
+    LOCAL_BALANCE = "B3"
+    
+    # ========== PORTFOLIO SUMMARY ==========
+    row = 5
+    ws.cell(row=row, column=1, value="PORTFOLIO SUMMARY")
+    ws.cell(row=row, column=1).font = header_font
+    ws.cell(row=row, column=1).fill = header_fill
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+    
+    row += 1
+    TOTAL_PROFIT_ROW = row
+    ws.cell(row=row, column=1, value="Total Expected Annual Profit:")
+    ws.cell(row=row, column=1).font = subheader_font
+    # Will be set later
+    ws.cell(row=row, column=2).font = Font(bold=True)
+    ws.cell(row=row, column=2).fill = money_fill
+    ws.cell(row=row, column=2).number_format = '$#,##0.00'
+    
+    row += 1
+    TOTAL_RETURN_ROW = row
+    ws.cell(row=row, column=1, value="Portfolio Annual Return:")
+    ws.cell(row=row, column=1).font = subheader_font
+    ws.cell(row=row, column=2).font = Font(bold=True)
+    ws.cell(row=row, column=2).fill = money_fill
+    ws.cell(row=row, column=2).number_format = '0.00%'
+    
+    # ========== STRATEGY LEVEL ALLOCATION ==========
+    row = 10
+    ws.cell(row=row, column=1, value="STRATEGY LEVEL ALLOCATION")
+    ws.cell(row=row, column=1).font = header_font
+    ws.cell(row=row, column=1).fill = header_fill
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=6)
+    
+    row += 1
+    strat_headers = ['Strategy', 'Pairs', 'Strategy Weight %', 'Allocated Capital', 
+                     'Expected Annual Profit', 'Return %']
+    for col, header in enumerate(strat_headers, start=1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = subheader_font
+        cell.fill = subheader_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+    
+    row += 1
+    STRAT_DATA_START = row
+    
+    # Group data by strategy and calculate weights using this method
+    strategy_data = {}
+    for item in data:
+        strat = item['strategy']
+        if strat not in strategy_data:
+            strategy_data[strat] = {
+                'pairs': 0,
+                'pair_items': []
+            }
+        strategy_data[strat]['pairs'] += 1
+        strategy_data[strat]['pair_items'].append(item)
+    
+    num_strategies = len(strategy_data)
+    strategy_weight = 1 / num_strategies if num_strategies > 0 else 0
+    
+    strategy_rows = {}
+    for strat_name, strat_info in strategy_data.items():
+        strategy_rows[strat_name] = row
+        
+        ws.cell(row=row, column=1, value=strat_name)
+        ws.cell(row=row, column=1).border = border
+        
+        ws.cell(row=row, column=2, value=strat_info['pairs'])
+        ws.cell(row=row, column=2).border = border
+        ws.cell(row=row, column=2).alignment = Alignment(horizontal='center')
+        
+        ws.cell(row=row, column=3, value=strategy_weight)
+        ws.cell(row=row, column=3).border = border
+        ws.cell(row=row, column=3).number_format = '0.00%'
+        
+        # Allocated Capital formula
+        ws.cell(row=row, column=4, value=f"={LOCAL_BALANCE}*C{row}")
+        ws.cell(row=row, column=4).border = border
+        ws.cell(row=row, column=4).fill = formula_fill
+        ws.cell(row=row, column=4).number_format = '$#,##0.00'
+        
+        # Expected Profit - will be set later via SUMIF
+        ws.cell(row=row, column=5).border = border
+        ws.cell(row=row, column=5).fill = formula_fill
+        ws.cell(row=row, column=5).number_format = '$#,##0.00'
+        
+        # Return %
+        ws.cell(row=row, column=6, value=f"=IF(D{row}>0,E{row}/D{row},0)")
+        ws.cell(row=row, column=6).border = border
+        ws.cell(row=row, column=6).fill = formula_fill
+        ws.cell(row=row, column=6).number_format = '0.00%'
+        
+        row += 1
+    
+    STRAT_DATA_END = row - 1
+    
+    # Strategy Total Row
+    STRAT_TOTAL_ROW = row
+    ws.cell(row=row, column=1, value="TOTAL")
+    ws.cell(row=row, column=1).font = Font(bold=True)
+    ws.cell(row=row, column=1).border = border
+    ws.cell(row=row, column=1).fill = money_fill
+    
+    ws.cell(row=row, column=2, value=f"=SUM(B{STRAT_DATA_START}:B{STRAT_DATA_END})")
+    ws.cell(row=row, column=2).font = Font(bold=True)
+    ws.cell(row=row, column=2).border = border
+    ws.cell(row=row, column=2).fill = money_fill
+    
+    ws.cell(row=row, column=3, value=f"=SUM(C{STRAT_DATA_START}:C{STRAT_DATA_END})")
+    ws.cell(row=row, column=3).font = Font(bold=True)
+    ws.cell(row=row, column=3).border = border
+    ws.cell(row=row, column=3).fill = money_fill
+    ws.cell(row=row, column=3).number_format = '0.00%'
+    
+    ws.cell(row=row, column=4, value=f"=SUM(D{STRAT_DATA_START}:D{STRAT_DATA_END})")
+    ws.cell(row=row, column=4).font = Font(bold=True)
+    ws.cell(row=row, column=4).border = border
+    ws.cell(row=row, column=4).fill = money_fill
+    ws.cell(row=row, column=4).number_format = '$#,##0.00'
+    
+    ws.cell(row=row, column=5, value=f"=SUM(E{STRAT_DATA_START}:E{STRAT_DATA_END})")
+    ws.cell(row=row, column=5).font = Font(bold=True)
+    ws.cell(row=row, column=5).border = border
+    ws.cell(row=row, column=5).fill = money_fill
+    ws.cell(row=row, column=5).number_format = '$#,##0.00'
+    
+    ws.cell(row=row, column=6, value=f"=IF(D{row}>0,E{row}/D{row},0)")
+    ws.cell(row=row, column=6).font = Font(bold=True)
+    ws.cell(row=row, column=6).border = border
+    ws.cell(row=row, column=6).fill = money_fill
+    ws.cell(row=row, column=6).number_format = '0.00%'
+    
+    # ========== PAIR LEVEL ALLOCATION ==========
+    row += 3
+    ws.cell(row=row, column=1, value="PAIR LEVEL ALLOCATION")
+    ws.cell(row=row, column=1).font = header_font
+    ws.cell(row=row, column=1).fill = header_fill
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=10)
+    
+    row += 1
+    pair_headers = ['Strategy', 'Pair', 'Strategy Wt %', 'Pair Wt %', 'Combined Wt %',
+                    'Allocated Capital', 'Annual Return %', 'Expected Profit', 
+                    'Sharpe', 'Max DD']
+    for col, header in enumerate(pair_headers, start=1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = subheader_font
+        cell.fill = subheader_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center', wrap_text=True)
+    
+    row += 1
+    PAIR_DATA_START = row
+    
+    # Sort data by strategy then pair
+    sorted_data = sorted(data, key=lambda x: (x['strategy'], x['pair']))
+    
+    current_strategy = None
+    for item in sorted_data:
+        if current_strategy != item['strategy']:
+            if current_strategy is not None:
+                row += 1  # Blank row between strategies
+            current_strategy = item['strategy']
+        
+        # Get pair weight for this allocation method
+        strat_pair_alloc = pair_alloc.get(item['strategy'], {})
+        pair_pct_data = strat_pair_alloc.get(item['pair'], {})
+        pair_weight = pair_pct_data.get(allocation_method, 0)
+        
+        # If no allocation for this method, use equal weight
+        if pair_weight == 0:
+            num_pairs = strategy_data[item['strategy']]['pairs']
+            pair_weight = 100 / num_pairs if num_pairs > 0 else 100
+        
+        pair_weight_decimal = pair_weight / 100
+        
+        # Col A: Strategy
+        ws.cell(row=row, column=1, value=item['strategy'])
+        ws.cell(row=row, column=1).border = border
+        
+        # Col B: Pair
+        ws.cell(row=row, column=2, value=item['pair'])
+        ws.cell(row=row, column=2).border = border
+        
+        # Col C: Strategy Weight %
+        ws.cell(row=row, column=3, value=strategy_weight)
+        ws.cell(row=row, column=3).border = border
+        ws.cell(row=row, column=3).number_format = '0.00%'
+        
+        # Col D: Pair Weight %
+        ws.cell(row=row, column=4, value=pair_weight_decimal)
+        ws.cell(row=row, column=4).border = border
+        ws.cell(row=row, column=4).number_format = '0.00%'
+        
+        # Col E: Combined Weight % (formula)
+        ws.cell(row=row, column=5, value=f"=C{row}*D{row}")
+        ws.cell(row=row, column=5).border = border
+        ws.cell(row=row, column=5).fill = formula_fill
+        ws.cell(row=row, column=5).number_format = '0.00%'
+        
+        # Col F: Allocated Capital (formula)
+        ws.cell(row=row, column=6, value=f"={LOCAL_BALANCE}*E{row}")
+        ws.cell(row=row, column=6).border = border
+        ws.cell(row=row, column=6).fill = formula_fill
+        ws.cell(row=row, column=6).number_format = '$#,##0.00'
+        
+        # Col G: Annual Return % (static from historical)
+        ws.cell(row=row, column=7, value=item['annual_return'] / 100)
+        ws.cell(row=row, column=7).border = border
+        ws.cell(row=row, column=7).number_format = '0.00%'
+        
+        # Col H: Expected Profit (formula)
+        ws.cell(row=row, column=8, value=f"=F{row}*G{row}")
+        ws.cell(row=row, column=8).border = border
+        ws.cell(row=row, column=8).fill = formula_fill
+        ws.cell(row=row, column=8).number_format = '$#,##0.00'
+        
+        # Col I: Sharpe
+        ws.cell(row=row, column=9, value=item['sharpe'])
+        ws.cell(row=row, column=9).border = border
+        ws.cell(row=row, column=9).number_format = '0.00'
+        
+        # Col J: Max DD
+        ws.cell(row=row, column=10, value=item['max_dd'])
+        ws.cell(row=row, column=10).border = border
+        ws.cell(row=row, column=10).number_format = '$#,##0.00'
+        
+        row += 1
+    
+    PAIR_DATA_END = row - 1
+    
+    # Pair Total Row
+    row += 1
+    PAIR_TOTAL_ROW = row
+    ws.cell(row=row, column=1, value="TOTAL")
+    ws.cell(row=row, column=1).font = Font(bold=True)
+    ws.cell(row=row, column=1).border = border
+    ws.cell(row=row, column=1).fill = money_fill
+    
+    for col in range(2, 5):
+        ws.cell(row=row, column=col).border = border
+        ws.cell(row=row, column=col).fill = money_fill
+    
+    # Sum Combined Weight
+    ws.cell(row=row, column=5, value=f"=SUMIF(A{PAIR_DATA_START}:A{PAIR_DATA_END},\"<>\",E{PAIR_DATA_START}:E{PAIR_DATA_END})")
+    ws.cell(row=row, column=5).font = Font(bold=True)
+    ws.cell(row=row, column=5).border = border
+    ws.cell(row=row, column=5).fill = money_fill
+    ws.cell(row=row, column=5).number_format = '0.00%'
+    
+    # Sum Allocated Capital
+    ws.cell(row=row, column=6, value=f"=SUMIF(A{PAIR_DATA_START}:A{PAIR_DATA_END},\"<>\",F{PAIR_DATA_START}:F{PAIR_DATA_END})")
+    ws.cell(row=row, column=6).font = Font(bold=True)
+    ws.cell(row=row, column=6).border = border
+    ws.cell(row=row, column=6).fill = money_fill
+    ws.cell(row=row, column=6).number_format = '$#,##0.00'
+    
+    ws.cell(row=row, column=7).border = border
+    ws.cell(row=row, column=7).fill = money_fill
+    
+    # Sum Expected Profit
+    ws.cell(row=row, column=8, value=f"=SUMIF(A{PAIR_DATA_START}:A{PAIR_DATA_END},\"<>\",H{PAIR_DATA_START}:H{PAIR_DATA_END})")
+    ws.cell(row=row, column=8).font = Font(bold=True)
+    ws.cell(row=row, column=8).border = border
+    ws.cell(row=row, column=8).fill = money_fill
+    ws.cell(row=row, column=8).number_format = '$#,##0.00'
+    
+    for col in range(9, 11):
+        ws.cell(row=row, column=col).border = border
+        ws.cell(row=row, column=col).fill = money_fill
+    
+    # Now set strategy profit formulas using SUMIF
+    for strat_name, strat_row in strategy_rows.items():
+        formula = f'=SUMIF(A{PAIR_DATA_START}:A{PAIR_DATA_END},A{strat_row},H{PAIR_DATA_START}:H{PAIR_DATA_END})'
+        ws.cell(row=strat_row, column=5, value=formula)
+    
+    # Set portfolio summary formulas
+    ws.cell(row=TOTAL_PROFIT_ROW, column=2, value=f"=E{STRAT_TOTAL_ROW}")
+    ws.cell(row=TOTAL_RETURN_ROW, column=2, value=f"=IF({LOCAL_BALANCE}>0,B{TOTAL_PROFIT_ROW}/{LOCAL_BALANCE},0)")
+    
+    # Column widths
+    column_widths = {'A': 18, 'B': 14, 'C': 14, 'D': 12, 'E': 14, 
+                     'F': 16, 'G': 14, 'H': 16, 'I': 10, 'J': 12}
+    for col, width in column_widths.items():
+        ws.column_dimensions[col].width = width
+    
+    return ws
+
+
+def create_dynamic_excel(data, num_strategies, starting_balance, output_file, 
+                         strategy_stats=None, pair_alloc=None):
     """Create Excel with dynamic formulas."""
     wb = Workbook()
     ws = wb.active
@@ -543,10 +875,34 @@ def create_dynamic_excel(data, num_strategies, starting_balance, output_file):
     for col, width in column_widths.items():
         ws.column_dimensions[col].width = width
     
+    # ========== CREATE 5 ALLOCATION METHOD SHEETS ==========
+    allocation_methods = [
+        ('equal', 'Equal Weight'),
+        ('inv_vol', 'Inv Volatility'),
+        ('sharpe', 'Sharpe Weighted'),
+        ('risk_parity', 'Risk Parity'),
+        ('max_sharpe', 'Max Sharpe')
+    ]
+    
+    if strategy_stats and pair_alloc:
+        print("\n📊 Creating allocation method simulation sheets...")
+        for method_key, sheet_name in allocation_methods:
+            create_allocation_method_sheet(
+                wb=wb,
+                sheet_name=sheet_name,
+                data=data,
+                strategy_stats=strategy_stats,
+                pair_alloc=pair_alloc,
+                allocation_method=method_key,
+                balance_cell_ref=BALANCE_CELL
+            )
+            print(f"   ✓ Created sheet: {sheet_name}")
+    
     # Save
     wb.save(output_file)
     print(f"\n✅ Dynamic Excel file saved: {output_file}")
     print(f"   → Change cell B3 to update all allocations automatically!")
+    print(f"   → 5 allocation method sheets show profit simulations for each method!")
 
 
 def get_starting_balance():
@@ -596,7 +952,8 @@ def main():
     
     # Create dynamic Excel
     output_file = 'Portfolio_Allocation_Dynamic.xlsx'
-    create_dynamic_excel(data, num_strategies, starting_balance, output_file)
+    create_dynamic_excel(data, num_strategies, starting_balance, output_file,
+                         strategy_stats=strategy_stats, pair_alloc=pair_alloc)
     
     # Display summary
     total_pairs = len(data)
@@ -610,6 +967,13 @@ def main():
     print(f"🔗 Trading Pairs: {total_pairs}")
     print(f"\n📝 The Excel file contains dynamic formulas.")
     print(f"   Just change cell B3 to recalculate everything!")
+    print(f"\n📊 Sheets Created:")
+    print(f"   1. Portfolio Allocation - Main allocation view")
+    print(f"   2. Equal Weight - Equal weight simulation")
+    print(f"   3. Inv Volatility - Inverse volatility simulation")
+    print(f"   4. Sharpe Weighted - Sharpe ratio weighted simulation")
+    print(f"   5. Risk Parity - Risk parity simulation")
+    print(f"   6. Max Sharpe - Max Sharpe optimization simulation")
     print("=" * 60)
 
 
