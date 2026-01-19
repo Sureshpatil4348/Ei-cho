@@ -10,6 +10,27 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill, Protection
 from openpyxl.utils import get_column_letter
 
+# Strategy display names mapping (internal name -> display name)
+STRATEGY_DISPLAY_NAMES = {
+    'AURUM': 'Black Dragon',
+    'Falcon': 'Silver Falcon',
+    'Gold_Dip': 'Iron Bear',
+    'PairTradingEA': 'Twin Fox',
+    'RSI_6_Trades': 'Red Kraken',
+    'RSI_Correlation': 'Night Wolf',
+    '7th_Strategy': 'Golden Stallion',
+    'Reversal_Strategy': 'Shadow Owl'
+}
+
+def get_strategy_display_name(internal_name):
+    """Get display name for a strategy, fallback to internal name if not found."""
+    return STRATEGY_DISPLAY_NAMES.get(internal_name, internal_name)
+
+def get_strategy_internal_name(display_name):
+    """Get internal name from display name, fallback to display name if not found."""
+    reverse_map = {v: k for k, v in STRATEGY_DISPLAY_NAMES.items()}
+    return reverse_map.get(display_name, display_name)
+
 
 def parse_strategy_statistics(xl):
     """Parse the Strategy_Statistics sheet to extract pair-level data."""
@@ -22,7 +43,9 @@ def parse_strategy_statistics(xl):
         first_cell = str(row.iloc[0]) if pd.notna(row.iloc[0]) else ''
         
         if first_cell.startswith('Strategy:'):
-            current_strategy = first_cell.replace('Strategy:', '').strip()
+            display_name = first_cell.replace('Strategy:', '').strip()
+            # Convert display name back to internal name for lookups
+            current_strategy = get_strategy_internal_name(display_name)
             strategies[current_strategy] = []
         
         elif current_strategy and pd.notna(row.iloc[1]) and row.iloc[1] != 'Sharpe_Ratio':
@@ -63,9 +86,10 @@ def parse_pair_allocation(xl):
         first_cell = str(row.iloc[0]) if pd.notna(row.iloc[0]) else ''
         
         if first_cell.startswith('STRATEGY:'):
-            strategy_name = first_cell.replace('STRATEGY:', '').strip()
-            strategy_name = strategy_name.split('(')[0].strip()
-            current_strategy = strategy_name
+            display_name = first_cell.replace('STRATEGY:', '').strip()
+            display_name = display_name.split('(')[0].strip()
+            # Convert display name back to internal name for lookups
+            current_strategy = get_strategy_internal_name(display_name)
             allocations[current_strategy] = {}
         
         elif current_strategy and pd.notna(row.iloc[0]) and row.iloc[0] not in ['Currency_Pair', 'TOTAL', '']:
@@ -104,7 +128,9 @@ def parse_strategy_allocation(xl):
                 profit = float(row.iloc[11]) if pd.notna(row.iloc[11]) else 0
                 
                 if pairs > 0:
-                    allocations[first_cell] = {
+                    # Convert display name back to internal name for lookups
+                    internal_name = get_strategy_internal_name(first_cell)
+                    allocations[internal_name] = {
                         'pairs': pairs,
                         'sharpe': sharpe,
                         'capital_req': capital_req,
@@ -283,8 +309,9 @@ def create_allocation_method_sheet(wb, sheet_name, data, strategy_stats, pair_al
     strategy_rows = {}
     for strat_name, strat_info in strategy_data.items():
         strategy_rows[strat_name] = row
+        display_name = get_strategy_display_name(strat_name)
         
-        ws.cell(row=row, column=1, value=strat_name)
+        ws.cell(row=row, column=1, value=display_name)
         ws.cell(row=row, column=1).border = border
         
         ws.cell(row=row, column=2, value=strat_info['pairs'])
@@ -396,7 +423,8 @@ def create_allocation_method_sheet(wb, sheet_name, data, strategy_stats, pair_al
         pair_weight_decimal = pair_weight / 100
         
         # Col A: Strategy
-        ws.cell(row=row, column=1, value=item['strategy'])
+        display_name = get_strategy_display_name(item['strategy'])
+        ws.cell(row=row, column=1, value=display_name)
         ws.cell(row=row, column=1).border = border
         
         # Col B: Pair
@@ -480,7 +508,7 @@ def create_allocation_method_sheet(wb, sheet_name, data, strategy_stats, pair_al
     ws.cell(row=row, column=7).fill = money_fill
     
     # Sum Expected Profit
-    ws.cell(row=row, column=8, value=f"=SUMIF(A{PAIR_DATA_START}:A{PAIR_DATA_END},\"<>\",H{PAIR_DATA_START}:H{PAIR_DATA_END})")
+    ws.cell(row=row, column=8, value=f"=SUMIF(A{PAIR_DATA_START}:A{PAIR_DATA_END},\"<>\",H{PAIR_DATA_START}:H{PAIR_DATA_END})")S
     ws.cell(row=row, column=8).font = Font(bold=True)
     ws.cell(row=row, column=8).border = border
     ws.cell(row=row, column=8).fill = money_fill
@@ -646,9 +674,10 @@ def create_dynamic_excel(data, num_strategies, starting_balance, output_file,
     strategy_rows = {}
     for strat_name, strat_info in strategy_data.items():
         strategy_rows[strat_name] = row
+        display_name = get_strategy_display_name(strat_name)
         
         # Strategy name
-        ws.cell(row=row, column=1, value=strat_name)
+        ws.cell(row=row, column=1, value=display_name)
         ws.cell(row=row, column=1).border = border
         
         # Pairs count
@@ -764,7 +793,8 @@ def create_dynamic_excel(data, num_strategies, starting_balance, output_file,
         pair_rows_by_strategy[current_strategy].append(row)
         
         # Col A: Strategy
-        ws.cell(row=row, column=1, value=item['strategy'])
+        display_name = get_strategy_display_name(item['strategy'])
+        ws.cell(row=row, column=1, value=display_name)
         ws.cell(row=row, column=1).border = border
         
         # Col B: Pair

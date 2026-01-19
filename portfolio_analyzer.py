@@ -177,6 +177,22 @@ STRATEGY_EQUITY_PATHS = {
 # Strategy colors for Excel styling
 STRATEGY_COLORS = ["4472C4", "ED7D31", "70AD47", "9E480E", "5B9BD5", "7030A0", "C00000", "FFC000"]
 
+# Strategy display names mapping (internal name -> display name)
+STRATEGY_DISPLAY_NAMES = {
+    'AURUM': 'Black Dragon',
+    'Falcon': 'Silver Falcon',
+    'Gold_Dip': 'Iron Bear',
+    'PairTradingEA': 'Twin Fox',
+    'RSI_6_Trades': 'Red Kraken',
+    'RSI_Correlation': 'Night Wolf',
+    '7th_Strategy': 'Golden Stallion',
+    'Reversal_Strategy': 'Shadow Owl'
+}
+
+def get_strategy_display_name(internal_name):
+    """Get display name for a strategy, fallback to internal name if not found."""
+    return STRATEGY_DISPLAY_NAMES.get(internal_name, internal_name)
+
 
 # ============================================================================
 # UTILITY FUNCTIONS - FILE LOADING
@@ -751,7 +767,8 @@ def create_sheet1_statistics(wb, strategies_data):
     row += 2
     
     for idx, (strategy_name, df) in enumerate(strategies_data.items()):
-        ws.cell(row=row, column=1, value=f"Strategy: {strategy_name}")
+        display_name = get_strategy_display_name(strategy_name)
+        ws.cell(row=row, column=1, value=f"Strategy: {display_name}")
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=18)
         style_strategy_header(ws, row, 1, 18, STRATEGY_COLORS[idx % len(STRATEGY_COLORS)])
         row += 1
@@ -837,7 +854,8 @@ def create_sheet2_pair_allocation(wb, strategies_data):
         if len(df) == 0:
             continue
         
-        ws.cell(row=row, column=1, value=f"STRATEGY: {strategy_name} ({len(df)} pairs)")
+        display_name = get_strategy_display_name(strategy_name)
+        ws.cell(row=row, column=1, value=f"STRATEGY: {display_name} ({len(df)} pairs)")
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=12)
         style_strategy_header(ws, row, 1, 12, STRATEGY_COLORS[idx % len(STRATEGY_COLORS)])
         row += 1
@@ -917,8 +935,9 @@ def create_sheet3_strategy_allocation(wb, strategies_data):
     
     strategies = []
     for strategy_name, df in strategies_data.items():
+        display_name = get_strategy_display_name(strategy_name)
         strategy_info = {
-            'Strategy': strategy_name,
+            'Strategy': display_name,
             'Num_Pairs': len(df),
             'Avg_Sharpe_Ratio': df['Sharpe_Ratio'].mean(),
             'Total_Profit': df['Total_Profit'].sum(),
@@ -1105,7 +1124,8 @@ def create_sheet4_final_portfolio(wb, strategies_data):
     row += 1
     
     for strategy, method in STRATEGY_PAIR_METHODS.items():
-        ws.cell(row=row, column=1, value=f"  • {strategy}:")
+        display_name = get_strategy_display_name(strategy)
+        ws.cell(row=row, column=1, value=f"  • {display_name}:")
         ws.cell(row=row, column=2, value=method)
         ws.cell(row=row, column=2).font = Font(color="0066CC")
         row += 1
@@ -1132,8 +1152,9 @@ def create_sheet4_final_portfolio(wb, strategies_data):
         strategy_sharpe = np.sum((pair_weights / 100) * df['Sharpe_Ratio'].values)
         strategy_xirr = calculate_portfolio_xirr(pair_weights, df['Correct_XIRR'].values)
         
+        display_name = get_strategy_display_name(strategy_name)
         strategy_results.append({
-            'Strategy': strategy_name,
+            'Strategy': display_name,
             'Pair_Method': pair_method,
             'Num_Pairs': len(df),
             'Strategy_Sharpe': strategy_sharpe,
@@ -1348,7 +1369,8 @@ def create_within_strategy_correlation_sheet(wb):
         
         corr_matrix = returns.corr()
         
-        ws.cell(row=row, column=1, value=f"STRATEGY: {strategy_name}")
+        display_name = get_strategy_display_name(strategy_name)
+        ws.cell(row=row, column=1, value=f"STRATEGY: {display_name}")
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=len(pair_names)+1)
         style_strategy_header(ws, row, 1, len(pair_names)+1, STRATEGY_COLORS[idx % len(STRATEGY_COLORS)])
         row += 1
@@ -1433,14 +1455,16 @@ def create_between_strategy_correlation_sheet(wb):
     
     ws.cell(row=row, column=1, value="Strategy")
     for col_idx, strategy in enumerate(strategy_names, 2):
-        ws.cell(row=row, column=col_idx, value=strategy)
+        display_name = get_strategy_display_name(strategy)
+        ws.cell(row=row, column=col_idx, value=display_name)
     style_header(ws, row, 1, len(strategy_names)+1)
     row += 1
     
     start_data_row = row
     
     for i, strategy in enumerate(strategy_names):
-        ws.cell(row=row, column=1, value=strategy)
+        display_name = get_strategy_display_name(strategy)
+        ws.cell(row=row, column=1, value=display_name)
         ws.cell(row=row, column=1).font = Font(bold=True)
         
         for j, _ in enumerate(strategy_names):
